@@ -8,3 +8,8 @@ class PipelineResult:
     dataframe: pd.DataFrame
 
     context: PipelineContext
+
+    @property
+    def statistics(self):
+
+        return self.context.statistics

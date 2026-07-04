@@ -1,9 +1,27 @@
 import pandas as pd
 
 from openbi.pipeline.pipeline_step import PipelineStep
+from openbi.pipeline.step_result import StepResult
+from openbi.pipeline.step_statistics import StepStatistics
 
 
 class MissingValueHandler(PipelineStep):
+    """
+    Standardizes different representations of missing values.
+
+    Example
+
+        NULL
+        null
+        N/A
+        ""
+        --
+        None
+
+    become
+
+        <NA>
+    """
 
     DEFAULT_MISSING_VALUES = {
         "",
@@ -35,9 +53,15 @@ class MissingValueHandler(PipelineStep):
     def name(self) -> str:
         return "Missing Value Handler"
 
-    def process(self, dataframe: pd.DataFrame) -> pd.DataFrame:
+    def process(self, dataframe: pd.DataFrame) -> StepResult:
 
         df = dataframe.copy()
+
+        stats = StepStatistics()
+        stats.step_name = self.name
+        stats.capture_before(df)
+
+        values_changed = 0
 
         object_columns = df.select_dtypes(
             include=["object", "string"]
@@ -45,15 +69,33 @@ class MissingValueHandler(PipelineStep):
 
         for column in object_columns:
 
-            df[column] = (
-                df[column]
-                .astype("string")
-                .str.strip()
-            )
+            series = df[column].astype("string")
 
-            df[column] = df[column].replace(
+            original = series.copy()
+
+            cleaned = series.str.strip()
+
+            cleaned = cleaned.replace(
                 list(self.missing_values),
                 pd.NA
             )
 
-        return df
+            changed = (
+                original.fillna("<NA>")
+                != cleaned.fillna("<NA>")
+            )
+
+            values_changed += int(
+                changed.sum()
+            )
+
+            df[column] = cleaned
+
+        stats.capture_after(df)
+
+        stats.values_changed = values_changed
+
+        return StepResult(
+            dataframe=df,
+            statistics=stats
+        )

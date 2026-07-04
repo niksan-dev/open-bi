@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 import pandas as pd
 
+from openbi.pipeline.step_result import StepResult
+
 
 class PipelineStep(ABC):
 
@@ -9,5 +11,5 @@ class PipelineStep(ABC):
         return self.__class__.__name__
 
     @abstractmethod
-    def process(self, dataframe: pd.DataFrame) -> pd.DataFrame:
+    def process(self, dataframe: pd.DataFrame) -> StepResult:
         pass
