@@ -1,0 +1,13 @@
+pandas
+numpy
+networkx
+plotly
+duckdb
+sqlalchemy
+openpyxl
+pyarrow
+streamlit
+dash
+dash-cytoscape
+matplotlib
+pytest
