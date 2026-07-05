@@ -48,117 +48,24 @@ class RESTConnector(DataSource):
 
         return True
 
-    def load(self):
-
-        start = time.perf_counter()
+    def read(self):
 
         response = requests.get(
 
-            self.url,
-
-            headers=self.headers,
-
-            params=self.params,
-
-            auth=self.auth,
-
-            timeout=self.timeout
+            self.url
 
         )
 
         response.raise_for_status()
 
-        data = response.json()
+        return {
 
-        dataset = self.create_dataset(
+            "Data":
 
-            self.dataset_name
-            or "REST API"
+            pd.DataFrame(
 
-        )
-
-        # ---------------------------------
-        # JSON Array
-        # ---------------------------------
-
-        if isinstance(data, list):
-
-            df = pd.DataFrame(data)
-
-            table = self.create_table(
-
-                "Data",
-
-                df
+                response.json()
 
             )
 
-            dataset.model.add_table(table)
-
-        # ---------------------------------
-        # JSON Object
-        # ---------------------------------
-
-        elif isinstance(data, dict):
-
-            created = False
-
-            for key, value in data.items():
-
-                if isinstance(value, list):
-
-                    df = pd.DataFrame(value)
-
-                    table = self.create_table(
-
-                        key,
-
-                        df
-
-                    )
-
-                    dataset.model.add_table(table)
-
-                    created = True
-
-            if not created:
-
-                df = pd.json_normalize(data)
-
-                table = self.create_table(
-
-                    "Data",
-
-                    df
-
-                )
-
-                dataset.model.add_table(table)
-
-        else:
-
-            raise ValueError(
-
-                "Unsupported API response."
-
-            )
-
-        self.statistics.table_count = len(
-
-            dataset.model.tables
-
-        )
-
-        self.statistics.execution_time_ms = (
-
-            time.perf_counter() - start
-
-        ) * 1000
-
-        return DataSourceResult(
-
-            dataset=dataset,
-
-            statistics=self.statistics
-
-        )
+        }

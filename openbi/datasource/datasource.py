@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-
+import time
 import pandas as pd
 
-from openbi.datasource.datasource_result import DataSourceResult
 from openbi.datasource.datasource_statistics import DataSourceStatistics
+from openbi.datasource.datasource_result import DataSourceResult
 
 from openbi.model.dataset import Dataset
 from openbi.model.table import Table
@@ -14,136 +14,107 @@ from openbi.metadata.profiler import MetadataProfiler
 
 
 class DataSource(ABC):
-    """
-    Base class for all OpenBI data sources.
 
-    Examples
-    --------
-    CSVConnector
-    ExcelConnector
-    JSONConnector
-    GoogleSheetConnector
-    SQLiteConnector
-    SQLServerConnector
-    PostgreSQLConnector
-    MySQLConnector
-    RESTConnector
-    """
-
-    def __init__(self, source: str):
+    def __init__(
+        self,
+        source: str,
+        dataset_name: str = None
+    ):
 
         self.source = source
+        self.dataset_name = dataset_name
 
         self.statistics = DataSourceStatistics()
 
-    # ============================================================
+    # ---------------------------------------------------
     # Properties
-    # ============================================================
+    # ---------------------------------------------------
 
     @property
     @abstractmethod
-    def name(self) -> str:
+    def name(self):
         pass
 
     @property
-    def source_name(self) -> str:
+    def source_name(self):
 
         return Path(self.source).stem
 
     @property
-    def source_path(self) -> str:
-
-        return str(Path(self.source).resolve())
-
-    @property
-    def exists(self) -> bool:
+    def exists(self):
 
         return Path(self.source).exists()
 
-    # ============================================================
+    # ---------------------------------------------------
     # Connection
-    # ============================================================
+    # ---------------------------------------------------
 
     @abstractmethod
     def connect(self):
-        """
-        Open the data source.
-        """
         pass
 
     @abstractmethod
     def disconnect(self):
-        """
-        Close the data source.
-        """
         pass
+
+    # ---------------------------------------------------
+    # Read
+    # ---------------------------------------------------
 
     @abstractmethod
-    def load(self) -> DataSourceResult:
+    def read(self) -> dict[str, pd.DataFrame]:
         """
-        Load data into OpenBI.
+        Returns
+
+        {
+            "Orders": dataframe,
+            "Customers": dataframe
+        }
         """
         pass
 
-    # ============================================================
+    # ---------------------------------------------------
     # Validation
-    # ============================================================
+    # ---------------------------------------------------
 
     def validate(self):
 
         if not self.exists:
 
-            raise FileNotFoundError(
+            raise FileNotFoundError(self.source)
 
-                f"Data source not found:\n{self.source}"
+    # ---------------------------------------------------
+    # Dataset
+    # ---------------------------------------------------
 
-            )
-
-        return True
-
-    # ============================================================
-    # Dataset Helper
-    # ============================================================
-
-    def create_dataset(
-        self,
-        dataset_name: str
-    ) -> Dataset:
+    def create_dataset(self):
 
         return Dataset(
-            name=dataset_name
+
+            self.dataset_name
+            or self.source_name
+
         )
 
-    # ============================================================
-    # Table Helper
-    # ============================================================
+    # ---------------------------------------------------
+    # Table
+    # ---------------------------------------------------
 
     def create_table(
         self,
-        name: str,
-        dataframe: pd.DataFrame
-    ) -> Table:
-        """
-        DataFrame
-              ↓
-        Pipeline
-              ↓
-        Table
-              ↓
-        Metadata
-        """
+        name,
+        dataframe
+    ):
 
         pipeline = DefaultPipeline.create()
 
-        pipeline_result = pipeline.execute(dataframe)
-
-        clean_df = pipeline_result.dataframe
+        result = pipeline.execute(dataframe)
 
         table = Table.from_dataframe(
 
-            name=name,
+            name,
 
-            dataframe=clean_df
+            result.dataframe
 
         )
 
@@ -155,16 +126,14 @@ class DataSource(ABC):
 
         return table
 
-    # ============================================================
-    # Dataset Helper
-    # ============================================================
+    # ---------------------------------------------------
 
     def add_table(
         self,
-        dataset: Dataset,
-        name: str,
-        dataframe: pd.DataFrame
-    ) -> Table:
+        dataset,
+        name,
+        dataframe
+    ):
 
         table = self.create_table(
 
@@ -178,16 +147,12 @@ class DataSource(ABC):
 
         self.statistics.table_count += 1
 
-        return table
-
-    # ============================================================
-    # Result Helper
-    # ============================================================
+    # ---------------------------------------------------
 
     def create_result(
         self,
-        dataset: Dataset
-    ) -> DataSourceResult:
+        dataset
+    ):
 
         return DataSourceResult(
 
@@ -196,3 +161,39 @@ class DataSource(ABC):
             statistics=self.statistics
 
         )
+
+    # ---------------------------------------------------
+    # Template Method
+    # ---------------------------------------------------
+
+    def load(self):
+
+        start = time.perf_counter()
+
+        self.connect()
+
+        tables = self.read()
+
+        dataset = self.create_dataset()
+
+        for name, dataframe in tables.items():
+
+            self.add_table(
+
+                dataset,
+
+                name,
+
+                dataframe
+
+            )
+
+        self.statistics.execution_time_ms = (
+
+            time.perf_counter() - start
+
+        ) * 1000
+
+        self.disconnect()
+
+        return self.create_result(dataset)

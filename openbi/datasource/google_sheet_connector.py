@@ -48,98 +48,22 @@ class GoogleSheetConnector(DataSource):
 
         return "Google Sheet Connector"
 
-    def connect(self):
+    def read(self):
 
-        credentials = Credentials.from_service_account_file(
-
-            self.credentials_file,
-
-            scopes=self.SCOPES
-
-        )
-
-        self.client = gspread.authorize(credentials)
-
-        return True
-
-    def disconnect(self):
-
-        self.client = None
-
-        return True
-
-    def load(self):
-
-        start = time.perf_counter()
-
-        self.connect()
-
-        spreadsheet = self.client.open_by_key(
+        workbook = self.client.open_by_key(
 
             self.spreadsheet_id
 
         )
 
-        dataset = self.create_dataset(
+        tables = {}
 
-            self.dataset_name
+        for sheet in workbook.worksheets():
 
-            or spreadsheet.title
+            tables[sheet.title] = pd.DataFrame(
 
-        )
-
-        if self.worksheet is None:
-
-            worksheets = spreadsheet.worksheets()
-
-        else:
-
-            worksheets = [
-
-                spreadsheet.worksheet(
-
-                    self.worksheet
-
-                )
-
-            ]
-
-        for ws in worksheets:
-
-            values = ws.get_all_records()
-
-            df = pd.DataFrame(values)
-
-            table = self.create_table(
-
-                ws.title,
-
-                df
+                sheet.get_all_records()
 
             )
 
-            dataset.model.add_table(table)
-
-        self.statistics.table_count = len(
-
-            dataset.model.tables
-
-        )
-
-        end = time.perf_counter()
-
-        self.statistics.execution_time_ms = (
-
-            end - start
-
-        ) * 1000
-
-        self.disconnect()
-
-        return DataSourceResult(
-
-            dataset=dataset,
-
-            statistics=self.statistics
-
-        )
+        return tables
