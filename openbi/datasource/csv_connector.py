@@ -1,133 +1,68 @@
-
 import time
 import pandas as pd
 
 from openbi.datasource.datasource import DataSource
-from openbi.datasource.datasource_result import DataSourceResult
-
-from openbi.model.dataset import Dataset
-from openbi.model.table import Table
-
-from openbi.metadata.profiler import MetadataProfiler
-from openbi.pipeline.pipeline_builder import DefaultPipeline
 
 
 class CSVConnector(DataSource):
-    """
-    Loads a CSV file into an OpenBI Dataset.
-    """
 
     def __init__(
         self,
         source: str,
-        dataset_name: str | None = None,
-        table_name: str | None = None,
-        encoding: str = "utf-8",
-        delimiter: str = ",",
-        header: int = 0
+        dataset_name: str = None,
+        table_name: str = None
     ):
 
         super().__init__(source)
 
         self.dataset_name = dataset_name
         self.table_name = table_name
-        self.encoding = encoding
-        self.delimiter = delimiter
-        self.header = header
 
     @property
-    def name(self) -> str:
+    def name(self):
+
         return "CSV Connector"
 
     def connect(self):
+
         self.validate()
-        return True
 
     def disconnect(self):
-        return True
 
-    def load(self) -> DataSourceResult:
+        pass
+
+    def load(self):
 
         start = time.perf_counter()
 
         self.connect()
 
-        # ------------------------------------
-        # Read CSV
-        # ------------------------------------
+        df = pd.read_csv(self.source)
 
-        df = pd.read_csv(
-            self.source,
-            encoding=self.encoding,
-            sep=self.delimiter,
-            header=self.header
-        )
+        dataset = self.create_dataset(
 
-        # ------------------------------------
-        # Execute Pipeline
-        # ------------------------------------
-
-        pipeline = DefaultPipeline.create()
-
-        pipeline_result = pipeline.execute(df)
-
-        clean_df = pipeline_result.dataframe
-
-        # ------------------------------------
-        # Create Dataset
-        # ------------------------------------
-
-        dataset = Dataset(
-
-            name=self.dataset_name
+            self.dataset_name
             or self.source_name
 
         )
 
-        # ------------------------------------
-        # Create Table
-        # ------------------------------------
+        self.add_table(
 
-        table = Table.from_dataframe(
+            dataset,
 
-            name=self.table_name
-            or self.source_name.split(".")[0],
+            self.table_name
+            or self.source_name,
 
-            dataframe=clean_df
+            df
 
         )
-
-        # ------------------------------------
-        # Metadata
-        # ------------------------------------
-
-        MetadataProfiler.profile(table)
-
-        dataset.model.add_table(table)
-
-        # ------------------------------------
-        # Statistics
-        # ------------------------------------
-
-        end = time.perf_counter()
 
         self.statistics.execution_time_ms = (
 
-            end - start
+            time.perf_counter() - start
 
         ) * 1000
 
-        self.statistics.table_count = 1
-
-        self.statistics.row_count = table.row_count
-
-        self.statistics.column_count = table.column_count
-
         self.disconnect()
 
-        return DataSourceResult(
-
-            dataset=dataset,
-
-            statistics=self.statistics
-        )
+        return self.create_result(dataset)

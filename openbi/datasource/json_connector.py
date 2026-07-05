@@ -1,148 +1,113 @@
 import json
-import time
 import pandas as pd
 
 from openbi.datasource.datasource import DataSource
-from openbi.datasource.datasource_result import DataSourceResult
-
-from openbi.model.dataset import Dataset
-from openbi.model.table import Table
-
-from openbi.metadata.profiler import MetadataProfiler
-from openbi.pipeline.pipeline_builder import DefaultPipeline
 
 
 class JSONConnector(DataSource):
-    """
-    Loads JSON files into an OpenBI Dataset.
-    """
 
     def __init__(
         self,
         source: str,
-        dataset_name: str | None = None,
-        table_name: str | None = None,
-        orient: str = "records"
+        dataset_name: str = None
     ):
 
         super().__init__(source)
 
         self.dataset_name = dataset_name
-        self.table_name = table_name
-        self.orient = orient
 
     @property
-    def name(self) -> str:
+    def name(self):
+
         return "JSON Connector"
 
     def connect(self):
 
         self.validate()
 
-        return True
-
     def disconnect(self):
 
-        return True
+        pass
 
-    def load(self) -> DataSourceResult:
-
-        start = time.perf_counter()
+    def load(self):
 
         self.connect()
-
-        # ------------------------------------
-        # Load JSON
-        # ------------------------------------
 
         with open(
             self.source,
             "r",
             encoding="utf-8"
-        ) as f:
+        ) as file:
 
-            data = json.load(f)
+            data = json.load(file)
 
-        # ------------------------------------
-        # Convert JSON to DataFrame
-        # ------------------------------------
-
-        if isinstance(data, list):
-
-            df = pd.DataFrame(data)
-
-        elif isinstance(data, dict):
-
-            # Nested JSON
-            try:
-
-                df = pd.json_normalize(data)
-
-            except Exception:
-
-                df = pd.DataFrame([data])
-
-        else:
-
-            raise ValueError(
-                "Unsupported JSON format."
-            )
-
-        # ------------------------------------
-        # Execute Pipeline
-        # ------------------------------------
-
-        pipeline = DefaultPipeline.create()
-
-        pipeline_result = pipeline.execute(df)
-
-        clean_df = pipeline_result.dataframe
-
-        # ------------------------------------
-        # Create Dataset
-        # ------------------------------------
-
-        dataset = Dataset(
+        dataset = self.create_dataset(
 
             self.dataset_name
             or self.source_name
 
         )
 
-        # ------------------------------------
-        # Create Table
-        # ------------------------------------
+        # ---------------------------------
+        # JSON Array
+        # ---------------------------------
 
-        table = Table.from_dataframe(
+        if isinstance(data, list):
 
-            name=self.table_name
-            or self.source_name.replace(".json", ""),
+            self.add_table(
 
-            dataframe=clean_df
+                dataset,
 
-        )
+                self.source_name,
 
-        MetadataProfiler.profile(table)
+                pd.DataFrame(data)
 
-        dataset.model.add_table(table)
+            )
 
-        end = time.perf_counter()
+        # ---------------------------------
+        # JSON Object
+        # ---------------------------------
 
-        self.statistics.execution_time_ms = (
-            end - start
-        ) * 1000
+        elif isinstance(data, dict):
 
-        self.statistics.table_count = 1
+            created = False
 
-        self.statistics.row_count = table.row_count
+            for key, value in data.items():
 
-        self.statistics.column_count = table.column_count
+                if isinstance(value, list):
+
+                    self.add_table(
+
+                        dataset,
+
+                        key,
+
+                        pd.DataFrame(value)
+
+                    )
+
+                    created = True
+
+            if not created:
+
+                self.add_table(
+
+                    dataset,
+
+                    self.source_name,
+
+                    pd.json_normalize(data)
+
+                )
+
+        else:
+
+            raise ValueError(
+
+                "Unsupported JSON format."
+
+            )
 
         self.disconnect()
 
-        return DataSourceResult(
-
-            dataset=dataset,
-
-            statistics=self.statistics
-        )
+        return self.create_result(dataset)
