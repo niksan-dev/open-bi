@@ -1,6 +1,7 @@
 import pandas as pd
 
 from openbi.metadata.column_metadata import ColumnMetadata
+from openbi.model import column
 from openbi.profiler.statistics_profiler import StatisticsProfiler
 from openbi.profiler.datatype_detector import DataTypeDetector
 from openbi.profiler.key_detector import KeyDetector
@@ -46,9 +47,11 @@ class MetadataProfiler:
             # -----------------------------------
             # Detect Primary Key
             # -----------------------------------
-            metadata.primary_key_candidate = KeyDetector.detect(
-                column_name,
-                metadata
+            metadata.primary_key_candidate = (
+                KeyDetector.is_primary_key_candidate(
+                    column.name,
+                    series
+                )
             )
 
             # -----------------------------------

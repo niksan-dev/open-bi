@@ -1,28 +1,45 @@
+import pandas as pd
+
+
 class KeyDetector:
 
-    KEYWORDS = {
-
+    PRIMARY_KEY_KEYWORDS = {
         "id",
-
         "_id",
-
-        "key",
-
         "code",
-
-        "number"
-
+        "number",
+        "key"
     }
 
-    @classmethod
-    def detect(cls, column_name, metadata):
+    @staticmethod
+    def is_primary_key_candidate(
+        column_name: str,
+        series: pd.Series
+    ) -> bool:
 
-        if not metadata.is_unique:
+        # Must not contain NULLs
+        if series.isna().any():
             return False
 
-        if metadata.null_count > 0:
+        # Must be unique
+        if not series.is_unique:
             return False
 
         name = column_name.lower()
 
-        return any(word in name for word in cls.KEYWORDS)
+        return any(
+            keyword in name
+            for keyword in KeyDetector.PRIMARY_KEY_KEYWORDS
+        )
+
+    @staticmethod
+    def is_foreign_key_candidate(
+        column_name: str
+    ) -> bool:
+
+        name = column_name.lower()
+
+        return (
+            name.endswith("id")
+            or name.endswith("_id")
+        )

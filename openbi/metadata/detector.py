@@ -23,3 +23,28 @@ class KeyDetector:
         ]
 
         return any(keyword in name for keyword in keywords)
+    
+    @staticmethod
+    def is_foreign_key_candidate(column_name: str, metadata) -> bool:
+        """
+        Determine whether a column is a likely foreign key.
+        """
+
+        name = column_name.lower()
+
+        # Foreign keys are usually NOT unique
+        if metadata.is_unique:
+            return False
+
+        keywords = (
+            "id",
+            "_id",
+            "ref",
+            "_ref",
+            "fk"
+        )
+
+        return any(
+            keyword in name
+            for keyword in keywords
+        )

@@ -1,21 +1,43 @@
 from dataclasses import dataclass, field
 import pandas as pd
 
-from openbi.core.base import BaseEntity
 from openbi.model.column import Column
-from openbi.metadata.profiler import MetadataProfiler
 
 
 @dataclass
-class Table(BaseEntity):
+class Table:
 
-    name: str = ""
+    name: str
 
-    dataframe: pd.DataFrame = field(default_factory=pd.DataFrame)
+    dataframe: pd.DataFrame
 
     columns: list[Column] = field(default_factory=list)
 
     description: str = ""
+
+    def add_column(self, column: Column):
+
+        self.columns.append(column)
+
+    def get_column(self, name: str):
+
+        for column in self.columns:
+
+            if column.name == name:
+
+                return column
+
+        return None
+
+    @property
+    def row_count(self):
+
+        return len(self.dataframe)
+
+    @property
+    def column_count(self):
+
+        return len(self.columns)
 
     @classmethod
     def from_dataframe(cls, name: str, dataframe: pd.DataFrame):
@@ -25,26 +47,13 @@ class Table(BaseEntity):
             dataframe=dataframe
         )
 
-        profiler = MetadataProfiler()
+        for column_name in dataframe.columns:
 
-        metadata = profiler.profile(dataframe)
-
-        for col in dataframe.columns:
-
-            column = Column(
-                name=col,
-                datatype=str(dataframe[col].dtype),
-                metadata=metadata[col]
+            table.add_column(
+                Column(
+                    name=column_name,
+                    datatype=str(dataframe[column_name].dtype)
+                )
             )
 
-            table.columns.append(column)
-
         return table
-
-    @property
-    def row_count(self):
-        return len(self.dataframe)
-
-    @property
-    def column_count(self):
-        return len(self.columns)

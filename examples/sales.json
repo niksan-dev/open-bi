@@ -1,0 +1,12 @@
+[
+    {
+        "OrderId": "SP101",
+        "Customer": "John",
+        "Amount": 200
+    },
+    {
+        "OrderId": "SP102",
+        "Customer": "Alice",
+        "Amount": 250
+    }
+]

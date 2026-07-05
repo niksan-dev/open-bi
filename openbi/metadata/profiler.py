@@ -3,15 +3,17 @@ import pandas as pd
 from openbi.metadata.column_metadata import ColumnMetadata
 from openbi.metadata.detector import KeyDetector
 
+
 class MetadataProfiler:
 
-    def profile(self, dataframe: pd.DataFrame):
+    @staticmethod
+    def profile(table):
 
-        result = {}
+        dataframe = table.dataframe
 
-        for column in dataframe.columns:
+        for column in table.columns:
 
-            series = dataframe[column]
+            series = dataframe[column.name]
 
             metadata = ColumnMetadata()
 
@@ -21,22 +23,29 @@ class MetadataProfiler:
 
             metadata.nullable = metadata.null_count > 0
 
-            metadata.distinct_count = int(series.nunique())
+            metadata.distinct_count = int(series.nunique(dropna=True))
 
             metadata.is_unique = series.is_unique
 
-            metadata.primary_key_candidate = KeyDetector.is_primary_key_candidate(
-                column,
-                metadata
+            metadata.primary_key_candidate = (
+                KeyDetector.is_primary_key_candidate(
+                    column.name,
+                    metadata
+                )
+            )
+
+            metadata.foreign_key_candidate = (
+                KeyDetector.is_foreign_key_candidate(
+                    column.name,
+                    metadata
+                )
             )
 
             metadata.sample_values = (
                 series.dropna()
-                      .head(5)
-                      .tolist()
+                .head(5)
+                .tolist()
             )
-
-            # Numeric statistics
 
             if pd.api.types.is_numeric_dtype(series):
 
@@ -46,6 +55,6 @@ class MetadataProfiler:
 
                 metadata.mean = float(series.mean())
 
-            result[column] = metadata
+            column.metadata = metadata
 
-        return result
+        return table
