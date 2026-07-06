@@ -11,18 +11,20 @@ from openbi.model.table import Table
 
 from openbi.pipeline.pipeline_builder import DefaultPipeline
 from openbi.metadata.profiler import MetadataProfiler
-
+from openbi.connector_options.connector_options import ConnectorOptions
 
 class DataSource(ABC):
 
     def __init__(
         self,
         source: str,
-        dataset_name: str = None
+        dataset_name: str = None,
+        options: ConnectorOptions = None
     ):
 
         self.source = source
         self.dataset_name = dataset_name
+        self.options = options
 
         self.statistics = DataSourceStatistics()
 

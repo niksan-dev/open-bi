@@ -24,6 +24,17 @@ class CSVConnector(DataSource):
 
             self.source_name:
 
-            pd.read_csv(self.source)
+            pd.read_csv(
+                self.source,
+                
+                sep=self.options.delimiter,
+
+                encoding=self.options.encoding,
+
+                header=self.options.header,
+
+                skiprows=self.options.skip_rows,
+
+                quotechar=self.options.quotechar)
 
         }

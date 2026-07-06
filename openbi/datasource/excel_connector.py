@@ -24,6 +24,10 @@ class ExcelConnector(DataSource):
 
             self.source,
 
-            sheet_name=None
+            sheet_name=self.options.sheet_name,
+
+            header=self.options.header,
+
+            skiprows=self.options.skip_rows
 
         )
