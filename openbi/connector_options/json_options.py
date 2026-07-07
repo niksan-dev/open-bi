@@ -9,3 +9,5 @@ class JSONOptions(ConnectorOptions):
     encoding="utf-8"
 
     normalize=True
+
+    table_name: str | None = None

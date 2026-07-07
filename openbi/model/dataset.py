@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-from openbi.model.datamodel import DataModel
+from openbi.semantic.semantic_model import SemanticModel
 
 
 @dataclass
@@ -8,6 +8,12 @@ class Dataset:
 
     name: str
 
-    model: DataModel = field(default_factory=DataModel)
+    model: SemanticModel = field(
 
-    source: str = ""
+        default_factory=SemanticModel
+
+    )
+
+    description: str = ""
+
+    #source: DataSourceInfo
